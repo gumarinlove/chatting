@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>실시간 채팅 - 로그인</title>
+    <style>
+        /* 깔끔한 중앙 정렬 UI 스타일 */
+        body { 
+            font-family: 'Malgun Gothic', sans-serif; 
+            display: flex; justify-content: center; align-items: center; 
+            height: 100vh; background-color: #f0f2f5; margin: 0; 
+        }
+        .auth-container { 
+            background: white; padding: 30px; border-radius: 10px; 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 320px; text-align: center; 
+        }
+        .tab-btn { 
+            background: none; border: none; font-size: 16px; 
+            cursor: pointer; margin: 0 10px 20px; color: #aaa; padding-bottom: 5px;
+        }
+        .tab-btn.active { 
+            color: #333; font-weight: bold; border-bottom: 2px solid #007bff; 
+        }
+        .input-group { text-align: left; margin-bottom: 15px; }
+        .input-group label { 
+            display: block; font-size: 13px; color: #333; font-weight: bold; margin-bottom: 5px; 
+        }
+        .input-group input { 
+            width: 100%; padding: 10px; border: 1px solid #ccc; 
+            border-radius: 5px; box-sizing: border-box; font-size: 14px;
+        }
+        .hint { font-size: 11px; color: #007bff; font-weight: normal; }
+        
+        /* 버튼 스타일 */
+        .submit-btn { 
+            width: 100%; padding: 12px; background-color: #007bff; 
+            color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; font-weight: bold;
+        }
+        .submit-btn:hover { background-color: #0056b3; }
+        
+        /* 탭 전환에 따른 숨김 처리 */
+        .form-section { display: none; }
+        .form-section.active { display: block; }
+    </style>
+</head>
+<body>
+
+<div class="auth-container">
+    <!-- 상단 탭 버튼 -->
+    <div>
+        <button class="tab-btn active" onclick="switchTab('login')">로그인</button>
+        <button class="tab-btn" onclick="switchTab('signup')">회원가입</button>
+    </div>
+
+    <!-- 1. 로그인 폼 -->
+    <div id="login-form" class="form-section active">
+        <div class="input-group">
+            <label>닉네임</label>
+            <input type="text" id="login-nickname" placeholder="닉네임을 입력하세요">
+        </div>
+        <div class="input-group">
+            <label>비밀번호</label>
+            <input type="password" id="login-pin" maxlength="4" placeholder="숫자 4자리">
+        </div>
+        <button class="submit-btn" onclick="login()">채팅 시작하기</button>
+    </div>
+
+    <!-- 2. 회원가입 폼 -->
+    <div id="signup-form" class="form-section">
+        <div class="input-group">
+            <label>닉네임 <span class="hint">(한국어도 가능)</span></label>
+            <input type="text" id="signup-nickname" placeholder="사용할 닉네임 입력">
+        </div>
+        <div class="input-group">
+            <label>비밀번호 설정 <span class="hint">(숫자 4자리)</span></label>
+            <input type="password" id="signup-pin" maxlength="4" placeholder="****">
+        </div>
+        <button class="submit-btn" onclick="signup()">회원가입 완료</button>
+    </div>
+</div>
+
+<script>
+    // 1. 로그인/회원가입 탭 전환 로직
+    function switchTab(tab) {
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+        document.querySelectorAll('.form-section').forEach(form => form.classList.remove('active'));
+
+        if(tab === 'login') {
+            document.querySelectorAll('.tab-btn')[0].classList.add('active');
+            document.getElementById('login-form').classList.add('active');
+        } else {
+            document.querySelectorAll('.tab-btn')[1].classList.add('active');
+            document.getElementById('signup-form').classList.add('active');
+        }
+    }
+
+    // 2. 회원가입 버튼 클릭 시 작동하는 로직 (금지어 필터링 추가)
+    // 파일을 읽어오는 시간(네트워크 통신)을 기다려야 하므로 'async' 키워드를 붙여줍니다.
+    async function signup() {
+        const nickname = document.getElementById('signup-nickname').value.trim();
+        const pin = document.getElementById('signup-pin').value;
+        const pinRegex = /^[0-9]{4}$/;
+
+        if (!nickname) {
+            alert("닉네임을 입력해주세요.");
+            return;
+        }
+        if (!pinRegex.test(pin)) {
+            alert("비밀번호는 반드시 숫자 4자리로 설정해야 합니다.");
+            return;
+        }
+
+        try {
+            // 서버(또는 같은 폴더)에서 banned.txt 파일을 불러옵니다.
+            const response = await fetch('banned.txt');
+            
+            // 파일을 성공적으로 찾았다면
+            if (response.ok) {
+                const text = await response.text();
+                
+                // 텍스트를 줄바꿈(\n) 기준으로 쪼개서 배열로 만들고, 빈 줄을 제거합니다.
+                const bannedWords = text.split('\n')
+                                        .map(word => word.trim())
+                                        .filter(word => word.length > 0);
+                
+                // 유저가 입력한 닉네임에 금지어가 '포함'되어 있는지 검사합니다.
+                // 예: '바보'가 금지어일 때 '안녕바보야'도 차단됩니다.
+                const isBanned = bannedWords.some(bannedWord => nickname.includes(bannedWord));
+                
+                if (isBanned) {
+                    alert("사용할 수 없는 단어가 포함된 닉네임입니다. 다른 닉네임을 입력해주세요.");
+                    // 함수를 여기서 종료시켜 회원가입을 막습니다.
+                    return; 
+                }
+            } else {
+                console.warn("banned.txt 파일을 찾을 수 없어 금지어 검사를 건너뜁니다.");
+            }
+        } catch (error) {
+            console.error("금지어 파일을 읽는 중 오류가 발생했습니다:", error);
+        }
+
+        // --- 금지어 검사를 무사히 통과했을 때 실행되는 가입 로직 ---
+        alert(`'${nickname}'님, 성공적으로 가입되었습니다!\n이제 로그인해주세요.`);
+        
+        // 가입 완료 후 입력창 비우고 로그인 탭으로 자동 이동
+        document.getElementById('signup-nickname').value = '';
+        document.getElementById('signup-pin').value = '';
+        switchTab('login');
+    }
+
+    // 3. 로그인 버튼 클릭 시 작동하는 로직 (현재는 테스트용 임시 코드)
+    function login() {
+        const nickname = document.getElementById('login-nickname').value;
+        const pin = document.getElementById('login-pin').value;
+
+        if (nickname && pin.length === 4) {
+            // TODO: 나중에 데이터베이스와 비교해서 실제 가입된 유저인지 확인하는 로직 추가
+            alert(`${nickname}님, 환영합니다! 채팅방 화면으로 넘어갑니다.`);
+        } else {
+            alert("닉네임과 4자리 비밀번호를 정확히 입력해주세요.");
+        }
+    }
+</script>
+
+</body>
+</html>
