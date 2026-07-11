@@ -3,26 +3,127 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>실시간 채팅 - 로그인</title>
+    <title>실시간 채팅 - 로그인 및 회원가입</title>
     <style>
-        body { font-family: 'Malgun Gothic', sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background-color: #f0f2f5; margin: 0; }
-        .auth-container { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 320px; text-align: center; }
-        .tab-btn { background: none; border: none; font-size: 16px; cursor: pointer; margin: 0 10px 20px; color: #aaa; padding-bottom: 5px; }
-        .tab-btn.active { color: #333; font-weight: bold; border-bottom: 2px solid #007bff; }
-        .input-group { text-align: left; margin-bottom: 15px; }
-        .input-group label { display: block; font-size: 13px; color: #333; font-weight: bold; margin-bottom: 5px; }
-        .input-group input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; font-size: 14px; }
-        .hint { font-size: 11px; color: #007bff; font-weight: normal; }
-        .submit-btn { width: 100%; padding: 12px; background-color: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; font-weight: bold; }
-        .submit-btn:hover { background-color: #0056b3; }
-        .form-section { display: none; }
+        /* =========================================
+           1. 기본 전역 스타일 및 초기화
+           ========================================= */
+        :root {
+            --primary-color: #4A90E2;
+            --primary-hover: #357ABD;
+            --bg-color: #F4F7F6;
+            --text-main: #333333;
+            --text-muted: #888888;
+            --error-color: #E74C3C;
+            --success-color: #2ECC71;
+            --card-bg: #FFFFFF;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        body { 
+            font-family: 'Pretendard', 'Malgun Gothic', sans-serif; 
+            display: flex; justify-content: center; align-items: center; 
+            min-height: 100vh; background-color: var(--bg-color); 
+        }
+
+        /* =========================================
+           2. 메인 컨테이너 및 탭 UI 스타일
+           ========================================= */
+        .auth-container { 
+            background: var(--card-bg); padding: 40px; border-radius: 16px; 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05); width: 100%; max-width: 400px; 
+            position: relative; overflow: hidden;
+        }
+
+        .logo-area { text-align: center; margin-bottom: 30px; }
+        .logo-area h1 { font-size: 24px; color: var(--primary-color); margin-bottom: 5px; }
+        .logo-area p { font-size: 14px; color: var(--text-muted); }
+
+        .tab-menu { display: flex; margin-bottom: 30px; border-bottom: 2px solid #EEE; }
+        .tab-btn { 
+            flex: 1; background: none; border: none; font-size: 16px; padding: 10px 0;
+            cursor: pointer; color: var(--text-muted); font-weight: 600; transition: all 0.3s;
+            position: relative;
+        }
+        .tab-btn.active { color: var(--primary-color); }
+        .tab-btn.active::after {
+            content: ''; position: absolute; bottom: -2px; left: 0; width: 100%;
+            height: 2px; background-color: var(--primary-color);
+        }
+
+        /* =========================================
+           3. 입력 폼 및 버튼 스타일
+           ========================================= */
+        .form-section { display: none; animation: fadeIn 0.4s ease; }
         .form-section.active { display: block; }
+        
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .input-group { margin-bottom: 20px; }
+        .input-group label { display: block; font-size: 14px; color: var(--text-main); font-weight: 600; margin-bottom: 8px; }
+        .input-group input { 
+            width: 100%; padding: 14px; border: 1.5px solid #E0E0E0; border-radius: 8px; 
+            font-size: 15px; transition: border-color 0.3s; background-color: #FAFAFA;
+        }
+        .input-group input:focus { border-color: var(--primary-color); outline: none; background-color: #FFF; }
+        .hint { font-size: 12px; color: var(--primary-color); font-weight: normal; margin-left: 5px; }
+
+        .submit-btn { 
+            width: 100%; padding: 16px; background-color: var(--primary-color); 
+            color: white; border: none; border-radius: 8px; cursor: pointer; 
+            font-size: 16px; font-weight: bold; transition: background-color 0.3s;
+            margin-top: 10px;
+        }
+        .submit-btn:hover { background-color: var(--primary-hover); }
+
+        /* =========================================
+           4. 토스트 알림창 및 로딩 오버레이 (고급 UI)
+           ========================================= */
+        #toast-container {
+            position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+            z-index: 9999; display: flex; flex-direction: column; gap: 10px;
+        }
+        .toast {
+            background: rgba(0, 0, 0, 0.8); color: white; padding: 12px 24px;
+            border-radius: 30px; font-size: 14px; font-weight: 500;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15); opacity: 0; transform: translateY(-20px);
+            transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+        .toast.show { opacity: 1; transform: translateY(0); }
+        .toast.error { background: var(--error-color); }
+        .toast.success { background: var(--success-color); }
+
+        .loader-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255, 255, 255, 0.8); display: none; 
+            justify-content: center; align-items: center; z-index: 100;
+            border-radius: 16px; backdrop-filter: blur(2px);
+        }
+        .spinner {
+            width: 40px; height: 40px; border: 4px solid #f3f3f3; 
+            border-top: 4px solid var(--primary-color); border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
 
+<!-- 토스트 알림창 컨테이너 -->
+<div id="toast-container"></div>
+
 <div class="auth-container">
-    <div>
+    <!-- 로딩 애니메이션 오버레이 -->
+    <div class="loader-overlay" id="loader"><div class="spinner"></div></div>
+
+    <div class="logo-area">
+        <h1>실시간 웹 채팅</h1>
+        <p>파이어베이스 연동 보안 로그인</p>
+    </div>
+
+    <!-- 상단 탭 메뉴 -->
+    <div class="tab-menu">
         <button class="tab-btn active" onclick="switchTab('login')">로그인</button>
         <button class="tab-btn" onclick="switchTab('signup')">회원가입</button>
     </div>
@@ -31,11 +132,11 @@
     <div id="login-form" class="form-section active">
         <div class="input-group">
             <label>닉네임</label>
-            <input type="text" id="login-nickname" placeholder="닉네임을 입력하세요">
+            <input type="text" id="login-nickname" placeholder="가입한 닉네임을 입력하세요" autocomplete="off">
         </div>
         <div class="input-group">
-            <label>비밀번호</label>
-            <input type="password" id="login-pin" maxlength="4" placeholder="숫자 4자리">
+            <label>비밀번호 (PIN)</label>
+            <input type="password" id="login-pin" maxlength="4" placeholder="숫자 4자리 입력">
         </div>
         <button class="submit-btn" onclick="login()">채팅 시작하기</button>
     </div>
@@ -43,21 +144,69 @@
     <!-- 2. 회원가입 폼 -->
     <div id="signup-form" class="form-section">
         <div class="input-group">
-            <label>닉네임 <span class="hint">(한국어도 가능)</span></label>
-            <input type="text" id="signup-nickname" placeholder="사용할 닉네임 입력">
+            <label>새 닉네임 <span class="hint">(한국어/영어/숫자 가능)</span></label>
+            <input type="text" id="signup-nickname" placeholder="사용할 멋진 닉네임을 정해주세요" autocomplete="off">
         </div>
         <div class="input-group">
-            <label>비밀번호 설정 <span class="hint">(숫자 4자리)</span></label>
+            <label>비밀번호 설정 <span class="hint">(반드시 숫자 4자리)</span></label>
             <input type="password" id="signup-pin" maxlength="4" placeholder="****">
         </div>
-        <button class="submit-btn" onclick="signup()">회원가입 완료</button>
+        <button class="submit-btn" onclick="signup()">계정 생성하기</button>
     </div>
 </div>
 
+<!-- =========================================
+     5. 자바스크립트 로직 (Firebase 연동 및 예외처리)
+     ========================================= -->
 <script type="module">
-    import { db } from './firebase-init.js';
-    import { collection, addDoc, getDocs, query, where } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+    // Firebase 코어 및 설정 직접 포함 (상대 경로 import 에러 해결)
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
+    import { getFirestore, collection, addDoc, getDocs, query, where } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
 
+    const firebaseConfig = {
+        apiKey: "AIzaSyBTPc4Jdtp5bCRR6Sl2KnBARG88zAb4dco",
+        authDomain: "chatting-251e5.firebaseapp.com",
+        projectId: "chatting-251e5",
+        storageBucket: "chatting-251e5.firebasestorage.app",
+        messagingSenderId: "896657317592",
+        appId: "1:896657317592:web:456b81e34b290d6a89c1ad"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    // 페이지 로드 시 기존 꼬여있던 로그인 기록 초기화 (없는 계정 로그인 방지 핵심)
+    window.onload = function() {
+        localStorage.removeItem('currentUser');
+        localStorage.removeItem('currentRoom');
+        localStorage.removeItem('roomAdmin');
+    };
+
+    // UI 제어 유틸리티 함수들
+    const UI = {
+        showLoader: () => document.getElementById('loader').style.display = 'flex',
+        hideLoader: () => document.getElementById('loader').style.display = 'none',
+        
+        // 커스텀 토스트 알림 (alert 대신 사용)
+        showToast: (message, type = 'normal') => {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerText = message;
+            container.appendChild(toast);
+            
+            // 애니메이션 실행
+            setTimeout(() => toast.classList.add('show'), 10);
+            
+            // 3초 후 사라짐
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+    };
+
+    // 탭 전환 함수
     window.switchTab = function(tab) {
         document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
         document.querySelectorAll('.form-section').forEach(form => form.classList.remove('active'));
@@ -71,72 +220,147 @@
         }
     };
 
+    // 회원가입 함수 (완벽한 예외처리 및 중복 검사)
     window.signup = async function() {
         const nickname = document.getElementById('signup-nickname').value.trim();
         const pin = document.getElementById('signup-pin').value;
         const pinRegex = /^[0-9]{4}$/;
 
-        if (!nickname || !pinRegex.test(pin)) return alert("닉네임과 숫자 4자리 비밀번호를 확인해주세요.");
+        // 1. 입력값 유효성 검사
+        if (!nickname) return UI.showToast("닉네임을 입력해주세요.", "error");
+        if (!pinRegex.test(pin)) return UI.showToast("비밀번호는 반드시 숫자 4자리여야 합니다.", "error");
+        if (nickname.length > 12) return UI.showToast("닉네임은 최대 12글자까지 가능합니다.", "error");
 
-        // 금지어 검사
+        UI.showLoader();
+
         try {
-            const response = await fetch('banned.txt');
-            if (response.ok) {
-                const text = await response.text();
-                const bannedWords = text.split('\n').map(w => w.trim()).filter(w => w.length > 0);
-                if (bannedWords.some(w => nickname.includes(w))) return alert("사용할 수 없는 닉네임입니다.");
+            // 2. 금지어 검사 로직 (banned.txt 파일이 있을 경우)
+            try {
+                const response = await fetch('banned.txt');
+                if (response.ok) {
+                    const text = await response.text();
+                    const bannedWords = text.split('\n').map(w => w.trim()).filter(w => w.length > 0);
+                    if (bannedWords.some(w => nickname.includes(w))) {
+                        UI.hideLoader();
+                        return UI.showToast("금지어가 포함된 닉네임은 사용할 수 없습니다.", "error");
+                    }
+                }
+            } catch (e) {
+                console.warn("금지어 파일을 찾을 수 없어 검사를 건너뜁니다.");
             }
-        } catch (e) { console.error("금지어 확인 오류", e); }
 
-        try {
-            // 닉네임 중복 검사
-            const q = query(collection(db, "users"), where("nickname", "==", nickname));
+            // 3. 닉네임 중복 검사 (DB 연동)
+            const usersRef = collection(db, "users");
+            const q = query(usersRef, where("nickname", "==", nickname));
             const querySnapshot = await getDocs(q);
-            if (!querySnapshot.empty) return alert("이미 존재하는 닉네임입니다. 다른 닉네임을 사용해주세요.");
+            
+            if (!querySnapshot.empty) {
+                UI.hideLoader();
+                return UI.showToast("이미 누군가 사용 중인 닉네임입니다.", "error");
+            }
 
-            // 파이어베이스에 유저 저장
-            await addDoc(collection(db, "users"), { nickname: nickname, pin: pin, createdAt: new Date() });
-            alert(`'${nickname}'님, 가입되었습니다! 로그인해주세요.`);
+            // 4. DB에 새 유저 정보 저장
+            await addDoc(usersRef, {
+                nickname: nickname,
+                pin: pin,
+                createdAt: new Date().toISOString()
+            });
+
+            UI.hideLoader();
+            UI.showToast(`환영합니다! '${nickname}'님 계정이 생성되었습니다.`, "success");
+            
+            // 폼 초기화 및 로그인 탭으로 이동
             document.getElementById('signup-nickname').value = '';
             document.getElementById('signup-pin').value = '';
             window.switchTab('login');
+            
+            // 로그인 입력창에 닉네임 자동 완성 편의 기능
+            document.getElementById('login-nickname').value = nickname;
+
         } catch (error) {
-            console.error("회원가입 에러:", error);
-            alert("서버 연결에 실패했습니다.");
+            UI.hideLoader();
+            console.error("회원가입 처리 중 에러 발생:", error);
+            // 권한 에러 처리 안내
+            if(error.code === 'permission-denied') {
+                UI.showToast("데이터베이스 접근이 거부되었습니다. Firestore 규칙을 확인하세요.", "error");
+            } else {
+                UI.showToast("서버 통신에 실패했습니다. 네트워크 상태를 확인하세요.", "error");
+            }
         }
     };
 
+    // 로그인 함수 (강력한 검증 로직 추가)
     window.login = async function() {
         const nickname = document.getElementById('login-nickname').value.trim();
         const pin = document.getElementById('login-pin').value;
 
-        if (!nickname || pin.length !== 4) return alert("정보를 정확히 입력해주세요.");
+        // 1. 기본 입력 확인
+        if (!nickname) return UI.showToast("닉네임을 입력해주세요.", "error");
+        if (pin.length !== 4) return UI.showToast("비밀번호 4자리를 정확히 입력해주세요.", "error");
+
+        UI.showLoader();
 
         try {
-            // DB에서 해당 닉네임 찾기
-            const q = query(collection(db, "users"), where("nickname", "==", nickname));
+            // 2. DB에서 해당 닉네임 검색
+            const usersRef = collection(db, "users");
+            const q = query(usersRef, where("nickname", "==", nickname));
             const querySnapshot = await getDocs(q);
 
+            // 계정이 아예 없는 경우
             if (querySnapshot.empty) {
-                return alert("존재하지 않는 닉네임입니다.");
+                UI.hideLoader();
+                return UI.showToast("가입되지 않은 닉네임입니다. 먼저 회원가입을 진행해주세요.", "error");
             }
 
-            // 비밀번호 확인
-            let userFound = false;
+            // 3. 비밀번호 일치 여부 확인
+            let isAuthenticated = false;
+            let userData = null;
+
             querySnapshot.forEach((doc) => {
-                if (doc.data().pin === pin) userFound = true;
+                const data = doc.data();
+                if (data.pin === pin) {
+                    isAuthenticated = true;
+                    userData = data;
+                }
             });
 
-            if (userFound) {
+            UI.hideLoader();
+
+            // 4. 결과 처리
+            if (isAuthenticated) {
+                // 브라우저에 인증 정보 저장
                 localStorage.setItem('currentUser', nickname);
-                window.location.href = 'dashboard.html';
+                UI.showToast("로그인 성공! 대시보드로 이동합니다.", "success");
+                
+                // 1초 뒤 대시보드로 이동 (토스트 메시지 읽을 시간 제공)
+                setTimeout(() => {
+                    window.location.href = 'dashboard.html';
+                }, 1000);
             } else {
-                alert("비밀번호가 틀렸습니다.");
+                // 비밀번호가 틀린 경우
+                UI.showToast("비밀번호가 일치하지 않습니다.", "error");
+                document.getElementById('login-pin').value = ''; // 비번 입력창 비워주기
+                document.getElementById('login-pin').focus();
             }
+
         } catch (error) {
-            console.error("로그인 에러:", error);
+            UI.hideLoader();
+            console.error("로그인 검증 중 에러 발생:", error);
+            if(error.code === 'permission-denied') {
+                UI.showToast("데이터베이스 권한 오류: 파이어베이스 규칙을 수정해야 합니다.", "error");
+            } else {
+                UI.showToast("데이터베이스 연결에 실패했습니다.", "error");
+            }
         }
     };
+
+    // 엔터키 지원 (편의성)
+    document.getElementById('login-pin').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') window.login();
+    });
+    document.getElementById('signup-pin').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') window.signup();
+    });
 </script>
 
 </body>
