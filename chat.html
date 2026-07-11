@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>실시간 채팅방</title>
+    <style>
+        body { font-family: 'Malgun Gothic', sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background-color: #f0f2f5; margin: 0; }
+        
+        /* 채팅창 전체 프레임 */
+        .chat-container {
+            background: white; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); 
+            width: 450px; height: 650px; display: flex; flex-direction: column; overflow: hidden;
+        }
+        
+        /* 상단 헤더 */
+        .chat-header {
+            background: #007bff; color: white; padding: 15px 20px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .chat-header h2 { margin: 0; font-size: 18px; }
+        .header-buttons button {
+            background: rgba(255,255,255,0.2); color: white; border: none; 
+            padding: 5px 10px; border-radius: 5px; cursor: pointer; font-size: 12px; margin-left: 5px;
+        }
+        .header-buttons button:hover { background: rgba(255,255,255,0.4); }
+        
+        /* 방장 전용 관리 메뉴 (평소엔 숨김) */
+        .admin-panel {
+            background: #ffeeba; padding: 10px; display: none; justify-content: space-around;
+            border-bottom: 1px solid #ffdf7e;
+        }
+        .admin-panel button {
+            background: #ff4d4d; color: white; border: none; padding: 5px 10px; 
+            border-radius: 5px; font-size: 12px; cursor: pointer;
+        }
+        
+        /* 채팅 내용이 보이는 곳 */
+        .chat-box {
+            flex-grow: 1; padding: 20px; overflow-y: auto; background: #e9ecef;
+            display: flex; flex-direction: column; gap: 15px;
+        }
+        
+        /* 말풍선 스타일 */
+        .message-wrap { display: flex; flex-direction: column; max-width: 70%; }
+        .message-wrap.me { align-self: flex-end; align-items: flex-end; }
+        .message-wrap.other { align-self: flex-start; align-items: flex-start; }
+        
+        .sender-name { font-size: 12px; color: #555; margin-bottom: 3px; }
+        .message-bubble {
+            padding: 10px 15px; border-radius: 15px; font-size: 14px; word-wrap: break-word;
+            position: relative;
+        }
+        .me .message-bubble { background: #007bff; color: white; border-top-right-radius: 2px; }
+        .other .message-bubble { background: white; color: #333; border-top-left-radius: 2px; border: 1px solid #ddd; }
+        
+        /* 업로드된 이미지 스타일 */
+        .message-bubble img { max-width: 100%; border-radius: 10px; margin-top: 5px; }
+
+        /* 메시지 삭제 버튼 (방장만 보임) */
+        .delete-msg-btn {
+            background: red; color: white; border: none; border-radius: 50%;
+            width: 20px; height: 20px; font-size: 10px; cursor: pointer;
+            position: absolute; top: -10px; right: -10px; display: none;
+        }
+
+        /* 하단 입력창 */
+        .input-area {
+            display: flex; padding: 15px; background: white; border-top: 1px solid #eee;
+        }
+        .file-btn {
+            background: #f8f9fa; border: 1px solid #ccc; padding: 0 15px; 
+            border-radius: 5px; cursor: pointer; margin-right: 10px; font-size: 20px;
+        }
+        .text-input {
+            flex-grow: 1; padding: 10px; border: 1px solid #ccc; border-radius: 5px; outline: none;
+        }
+        .send-btn {
+            background: #007bff; color: white; border: none; padding: 0 20px; 
+            border-radius: 5px; cursor: pointer; margin-left: 10px; font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+<div class="chat-container">
+    <!-- 상단 헤더 -->
+    <header class="chat-header">
+        <h2 id="room-title">채팅방 이름</h2>
+        <div class="header-buttons">
+            <button id="admin-btn" style="display: none;" onclick="toggleAdminPanel()">👑 방장 메뉴</button>
+            <button onclick="leaveRoom()">나가기</button>
+        </div>
+    </header>
+
+    <!-- 방장 전용 관리 패널 -->
+    <div id="admin-panel" class="admin-panel">
+        <button onclick="manageUser('ban')">유저 밴(Ban)</button>
+        <button onclick="manageUser('mute')">유저 뮤트(Mute)</button>
+        <button onclick="deleteRoom()">폭파(방 삭제)</button>
+    </div>
+
+    <!-- 채팅 기록 화면 -->
+    <div id="chat-box" class="chat-box">
+        <!-- 시스템 메시지 -->
+        <div style="text-align: center; font-size: 12px; color: #888;">채팅방에 입장하셨습니다.</div>
+    </div>
+
+    <!-- 하단 입력창 -->
+    <div class="input-area">
+        <!-- 숨겨진 실제 파일 입력창 -->
+        <input type="file" id="image-upload" accept="image/*" style="display: none;" onchange="sendImage(event)">
+        <!-- 사진 아이콘 버튼 -->
+        <button class="file-btn" onclick="document.getElementById('image-upload').click()">📷</button>
+        
+        <input type="text" id="message-input" class="text-input" placeholder="메시지를 입력하세요..." onkeypress="handleKeyPress(event)">
+        <button class="send-btn" onclick="sendMessage()">전송</button>
+    </div>
+</div>
+
+<script>
+    // 1. 사용자 및 방 정보 불러오기
+    const currentUser = localStorage.getItem('currentUser');
+    const currentRoom = localStorage.getItem('currentRoom');
+    const roomAdmin = localStorage.getItem('roomAdmin');
+
+    // 로그인이나 방 선택 없이 들어온 경우 쫓아내기
+    if (!currentUser || !currentRoom) {
+        alert("잘못된 접근입니다.");
+        window.location.href = 'dashboard.html';
+    }
+
+    // 방 이름 세팅
+    document.getElementById('room-title').innerText = currentRoom;
+
+    // 2. 방장(Admin) 권한 확인
+    let isAdmin = (currentUser === roomAdmin);
+    if (isAdmin) {
+        document.getElementById('admin-btn').style.display = 'inline-block'; // 방장 버튼 표시
+        document.getElementById('room-title').innerText = `👑 ${currentRoom}`;
+    }
+
+    // 방장 패널 열기/닫기
+    function toggleAdminPanel() {
+        const panel = document.getElementById('admin-panel');
+        panel.style.display = (panel.style.display === 'flex') ? 'none' : 'flex';
+        
+        // 메시지 삭제 버튼 보이게/숨기게 토글
+        const deleteBtns = document.querySelectorAll('.delete-msg-btn');
+        deleteBtns.forEach(btn => {
+            btn.style.display = (panel.style.display === 'flex') ? 'block' : 'none';
+        });
+    }
+
+    // 3. 메시지 전송 로직
+    function sendMessage() {
+        const input = document.getElementById('message-input');
+        const text = input.value.trim();
+        if (!text) return;
+
+        createMessageBubble(currentUser, text, 'text');
+        input.value = ''; // 입력창 비우기
+    }
+
+    // 엔터키로 전송하기
+    function handleKeyPress(event) {
+        if (event.key === 'Enter') sendMessage();
+    }
+
+    // 4. 이미지 전송 로직 (미리보기)
+    function sendImage(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        // 파일을 브라우저에서 읽어서 이미지로 표시 (임시)
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            createMessageBubble(currentUser, e.target.result, 'image');
+        };
+        reader.readAsDataURL(file);
+    }
+
+    // 5. 말풍선 화면에 그리기
+    function createMessageBubble(sender, content, type) {
+        const chatBox = document.getElementById('chat-box');
+        const isMe = (sender === currentUser);
+        
+        const wrap = document.createElement('div');
+        wrap.className = `message-wrap ${isMe ? 'me' : 'other'}`;
+
+        let innerHTML = `<div class="sender-name">${sender}</div>`;
+        
+        // 방장일 경우 삭제 버튼 추가 (기본적으로 숨김 상태)
+        let deleteBtnHTML = isAdmin ? `<button class="delete-msg-btn" onclick="deleteMessage(this)">X</button>` : '';
+
+        if (type === 'text') {
+            innerHTML += `<div class="message-bubble">${content} ${deleteBtnHTML}</div>`;
+        } else if (type === 'image') {
+            innerHTML += `<div class="message-bubble"><img src="${content}" alt="업로드 이미지"> ${deleteBtnHTML}</div>`;
+        }
+
+        wrap.innerHTML = innerHTML;
+        chatBox.appendChild(wrap);
+        
+        // 스크롤 맨 아래로 내리기
+        chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    // 6. 방장 권한 기능들 (임시 경고창)
+    function manageUser(action) {
+        const targetUser = prompt(`${action === 'ban' ? '밴(차단)' : '뮤트(채팅금지)'}할 유저의 닉네임을 입력하세요:`);
+        if (targetUser) {
+            // TODO: 파이어베이스 연동 시 실제 DB의 권한 규칙을 변경하는 로직 추가
+            alert(`[시스템] ${targetUser}님을 ${action === 'ban' ? '영구 차단' : '채팅 금지'} 처리했습니다.`);
+        }
+    }
+
+    function deleteRoom() {
+        if(confirm("정말 이 채팅방을 삭제하시겠습니까? 모든 대화가 사라집니다.")) {
+            // TODO: 파이어베이스 연동 시 방 데이터를 삭제하는 로직 추가
+            alert("채팅방이 폭파되었습니다.");
+            leaveRoom();
+        }
+    }
+
+    function deleteMessage(buttonElement) {
+        if(confirm("이 메시지를 강제로 삭제하시겠습니까?")) {
+            // 화면에서 해당 말풍선 덩어리를 통째로 삭제
+            buttonElement.closest('.message-wrap').remove();
+        }
+    }
+
+    // 7. 나가기 버튼
+    function leaveRoom() {
+        localStorage.removeItem('currentRoom');
+        localStorage.removeItem('roomAdmin');
+        window.location.href = 'dashboard.html';
+    }
+</script>
+
+</body>
+</html>
