@@ -5,41 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>실시간 채팅 - 로그인</title>
     <style>
-        /* 깔끔한 중앙 정렬 UI 스타일 */
-        body { 
-            font-family: 'Malgun Gothic', sans-serif; 
-            display: flex; justify-content: center; align-items: center; 
-            height: 100vh; background-color: #f0f2f5; margin: 0; 
-        }
-        .auth-container { 
-            background: white; padding: 30px; border-radius: 10px; 
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 320px; text-align: center; 
-        }
-        .tab-btn { 
-            background: none; border: none; font-size: 16px; 
-            cursor: pointer; margin: 0 10px 20px; color: #aaa; padding-bottom: 5px;
-        }
-        .tab-btn.active { 
-            color: #333; font-weight: bold; border-bottom: 2px solid #007bff; 
-        }
+        body { font-family: 'Malgun Gothic', sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background-color: #f0f2f5; margin: 0; }
+        .auth-container { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 320px; text-align: center; }
+        .tab-btn { background: none; border: none; font-size: 16px; cursor: pointer; margin: 0 10px 20px; color: #aaa; padding-bottom: 5px; }
+        .tab-btn.active { color: #333; font-weight: bold; border-bottom: 2px solid #007bff; }
         .input-group { text-align: left; margin-bottom: 15px; }
-        .input-group label { 
-            display: block; font-size: 13px; color: #333; font-weight: bold; margin-bottom: 5px; 
-        }
-        .input-group input { 
-            width: 100%; padding: 10px; border: 1px solid #ccc; 
-            border-radius: 5px; box-sizing: border-box; font-size: 14px;
-        }
+        .input-group label { display: block; font-size: 13px; color: #333; font-weight: bold; margin-bottom: 5px; }
+        .input-group input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; font-size: 14px; }
         .hint { font-size: 11px; color: #007bff; font-weight: normal; }
-        
-        /* 버튼 스타일 */
-        .submit-btn { 
-            width: 100%; padding: 12px; background-color: #007bff; 
-            color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; font-weight: bold;
-        }
+        .submit-btn { width: 100%; padding: 12px; background-color: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; font-weight: bold; }
         .submit-btn:hover { background-color: #0056b3; }
-        
-        /* 탭 전환에 따른 숨김 처리 */
         .form-section { display: none; }
         .form-section.active { display: block; }
     </style>
@@ -47,7 +22,6 @@
 <body>
 
 <div class="auth-container">
-    <!-- 상단 탭 버튼 -->
     <div>
         <button class="tab-btn active" onclick="switchTab('login')">로그인</button>
         <button class="tab-btn" onclick="switchTab('signup')">회원가입</button>
@@ -80,9 +54,11 @@
     </div>
 </div>
 
-<script>
-    // 1. 로그인/회원가입 탭 전환 로직
-    function switchTab(tab) {
+<script type="module">
+    import { db } from './firebase-init.js';
+    import { collection, addDoc, getDocs, query, where } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+
+    window.switchTab = function(tab) {
         document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
         document.querySelectorAll('.form-section').forEach(form => form.classList.remove('active'));
 
@@ -93,67 +69,74 @@
             document.querySelectorAll('.tab-btn')[1].classList.add('active');
             document.getElementById('signup-form').classList.add('active');
         }
-    }
+    };
 
-    // 2. 회원가입 버튼 클릭 시 작동하는 로직 (금지어 필터링 추가)
-    async function signup() {
+    window.signup = async function() {
         const nickname = document.getElementById('signup-nickname').value.trim();
         const pin = document.getElementById('signup-pin').value;
         const pinRegex = /^[0-9]{4}$/;
 
-        if (!nickname) {
-            alert("닉네임을 입력해주세요.");
-            return;
-        }
-        if (!pinRegex.test(pin)) {
-            alert("비밀번호는 반드시 숫자 4자리로 설정해야 합니다.");
-            return;
-        }
+        if (!nickname || !pinRegex.test(pin)) return alert("닉네임과 숫자 4자리 비밀번호를 확인해주세요.");
 
+        // 금지어 검사
         try {
             const response = await fetch('banned.txt');
-            
             if (response.ok) {
                 const text = await response.text();
-                const bannedWords = text.split('\n')
-                                        .map(word => word.trim())
-                                        .filter(word => word.length > 0);
-                
-                const isBanned = bannedWords.some(bannedWord => nickname.includes(bannedWord));
-                
-                if (isBanned) {
-                    alert("사용할 수 없는 단어가 포함된 닉네임입니다. 다른 닉네임을 입력해주세요.");
-                    return; 
-                }
-            } else {
-                console.warn("banned.txt 파일을 찾을 수 없어 금지어 검사를 건너뜁니다.");
+                const bannedWords = text.split('\n').map(w => w.trim()).filter(w => w.length > 0);
+                if (bannedWords.some(w => nickname.includes(w))) return alert("사용할 수 없는 닉네임입니다.");
             }
+        } catch (e) { console.error("금지어 확인 오류", e); }
+
+        try {
+            // 닉네임 중복 검사
+            const q = query(collection(db, "users"), where("nickname", "==", nickname));
+            const querySnapshot = await getDocs(q);
+            if (!querySnapshot.empty) return alert("이미 존재하는 닉네임입니다. 다른 닉네임을 사용해주세요.");
+
+            // 파이어베이스에 유저 저장
+            await addDoc(collection(db, "users"), { nickname: nickname, pin: pin, createdAt: new Date() });
+            alert(`'${nickname}'님, 가입되었습니다! 로그인해주세요.`);
+            document.getElementById('signup-nickname').value = '';
+            document.getElementById('signup-pin').value = '';
+            window.switchTab('login');
         } catch (error) {
-            console.error("금지어 파일을 읽는 중 오류가 발생했습니다:", error);
+            console.error("회원가입 에러:", error);
+            alert("서버 연결에 실패했습니다.");
         }
+    };
 
-        alert(`'${nickname}'님, 성공적으로 가입되었습니다!\n이제 로그인해주세요.`);
-        
-        document.getElementById('signup-nickname').value = '';
-        document.getElementById('signup-pin').value = '';
-        switchTab('login');
-    }
-
-    // 3. 로그인 버튼 클릭 시 작동하는 로직 (★이 부분이 수정되었습니다!)
-    function login() {
-        const nickname = document.getElementById('login-nickname').value;
+    window.login = async function() {
+        const nickname = document.getElementById('login-nickname').value.trim();
         const pin = document.getElementById('login-pin').value;
 
-        if (nickname && pin.length === 4) {
-            // 브라우저에 닉네임을 임시 저장 (dashboard.html에서 누구인지 알기 위해)
-            localStorage.setItem('currentUser', nickname);
-            
-            // dashboard.html 파일로 화면 이동!
-            window.location.href = 'dashboard.html';
-        } else {
-            alert("닉네임과 4자리 비밀번호를 정확히 입력해주세요.");
+        if (!nickname || pin.length !== 4) return alert("정보를 정확히 입력해주세요.");
+
+        try {
+            // DB에서 해당 닉네임 찾기
+            const q = query(collection(db, "users"), where("nickname", "==", nickname));
+            const querySnapshot = await getDocs(q);
+
+            if (querySnapshot.empty) {
+                return alert("존재하지 않는 닉네임입니다.");
+            }
+
+            // 비밀번호 확인
+            let userFound = false;
+            querySnapshot.forEach((doc) => {
+                if (doc.data().pin === pin) userFound = true;
+            });
+
+            if (userFound) {
+                localStorage.setItem('currentUser', nickname);
+                window.location.href = 'dashboard.html';
+            } else {
+                alert("비밀번호가 틀렸습니다.");
+            }
+        } catch (error) {
+            console.error("로그인 에러:", error);
         }
-    }
+    };
 </script>
 
 </body>
