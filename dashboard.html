@@ -5,100 +5,285 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>실시간 채팅 - 대시보드</title>
     <style>
-        body { font-family: 'Malgun Gothic', sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background-color: #f0f2f5; margin: 0; }
-        .dashboard-container { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 500px; height: 600px; display: flex; flex-direction: column; }
-        .dashboard-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #f0f2f5; padding-bottom: 15px; margin-bottom: 20px; }
-        .dashboard-header h2 { margin: 0; font-size: 20px; color: #333; }
-        .logout-btn { background: #ff4d4d; color: white; border: none; padding: 8px 12px; border-radius: 5px; cursor: pointer; font-size: 12px; font-weight: bold; }
-        .logout-btn:hover { background: #cc0000; }
-        .create-room-btn { width: 100%; padding: 15px; background-color: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; font-weight: bold; margin-bottom: 20px; }
-        .create-room-btn:hover { background-color: #218838; }
-        .room-list-header { font-size: 16px; color: #555; margin-bottom: 10px; font-weight: bold; }
-        .room-list { list-style: none; padding: 0; margin: 0; overflow-y: auto; flex-grow: 1; }
-        .room-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; border: 1px solid #eee; border-radius: 8px; margin-bottom: 10px; transition: background 0.2s; }
-        .room-item:hover { background-color: #f8f9fa; }
-        .room-info { display: flex; flex-direction: column; }
-        .room-title { font-size: 16px; font-weight: bold; color: #333; margin-bottom: 5px; }
-        .room-admin { font-size: 12px; color: #888; }
-        .join-btn { background-color: #007bff; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; }
-        .join-btn:hover { background-color: #0056b3; }
+        /* =========================================
+           1. 기본 전역 스타일
+           ========================================= */
+        :root {
+            --primary: #4A90E2; --secondary: #2ECC71; --danger: #E74C3C;
+            --dark: #2C3E50; --light: #ECF0F1; --white: #FFFFFF;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Pretendard', sans-serif; background: var(--light); display: flex; justify-content: center; align-items: center; height: 100vh; }
+
+        /* =========================================
+           2. 대시보드 레이아웃
+           ========================================= */
+        .dashboard-container {
+            background: var(--white); width: 100%; max-width: 600px; height: 80vh; min-height: 600px;
+            border-radius: 20px; box-shadow: 0 15px 30px rgba(0,0,0,0.1); display: flex; flex-direction: column; overflow: hidden;
+        }
+        
+        .header { background: var(--dark); color: var(--white); padding: 25px; display: flex; justify-content: space-between; align-items: center; }
+        .user-info h2 { font-size: 22px; margin-bottom: 5px; }
+        .user-info p { font-size: 13px; color: #BDC3C7; display: flex; align-items: center; gap: 5px; }
+        .status-dot { width: 8px; height: 8px; background: var(--secondary); border-radius: 50%; display: inline-block; box-shadow: 0 0 8px var(--secondary); }
+        
+        .logout-btn { background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); padding: 8px 16px; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
+        .logout-btn:hover { background: var(--danger); border-color: var(--danger); }
+
+        /* =========================================
+           3. 툴바 및 방 목록 영역
+           ========================================= */
+        .toolbar { padding: 20px 25px; background: #F8F9FA; border-bottom: 1px solid #EEE; display: flex; gap: 15px; }
+        .search-box { flex: 1; position: relative; }
+        .search-box input { width: 100%; padding: 12px 15px; border: 1px solid #DDD; border-radius: 10px; font-size: 14px; outline: none; transition: border 0.3s; }
+        .search-box input:focus { border-color: var(--primary); }
+        
+        .create-btn { background: var(--primary); color: white; border: none; padding: 0 20px; border-radius: 10px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: transform 0.1s; }
+        .create-btn:active { transform: scale(0.95); }
+
+        .room-list-wrap { flex: 1; padding: 20px 25px; overflow-y: auto; background: var(--white); }
+        .list-header { font-size: 14px; color: #7F8C8D; margin-bottom: 15px; font-weight: 600; }
+        
+        .room-list { list-style: none; }
+        .room-item {
+            border: 1px solid #EEE; border-radius: 12px; padding: 18px; margin-bottom: 12px;
+            display: flex; justify-content: space-between; align-items: center; transition: all 0.2s;
+        }
+        .room-item:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,0,0,0.05); border-color: #D6EAF8; }
+        
+        .room-details h3 { font-size: 16px; color: var(--dark); margin-bottom: 6px; }
+        .room-meta { font-size: 12px; color: #95A5A6; display: flex; gap: 15px; }
+        .badge { background: #F1C40F; color: #fff; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; }
+        
+        .join-btn { background: var(--secondary); color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; transition: background 0.2s; }
+        .join-btn:hover { background: #27AE60; }
+
+        .empty-state { text-align: center; padding: 50px 0; color: #95A5A6; }
+        .empty-state text { font-size: 40px; display: block; margin-bottom: 15px; }
+
+        /* =========================================
+           4. 커스텀 모달 (방 만들기)
+           ========================================= */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 1000;
+            backdrop-filter: blur(3px);
+        }
+        .modal-box { background: white; width: 350px; padding: 30px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        @keyframes popIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        
+        .modal-box h3 { margin-bottom: 20px; color: var(--dark); text-align: center; }
+        .modal-box input { width: 100%; padding: 12px; border: 1px solid #DDD; border-radius: 8px; margin-bottom: 20px; font-size: 14px; outline: none; }
+        .modal-box input:focus { border-color: var(--primary); }
+        
+        .modal-btns { display: flex; gap: 10px; }
+        .modal-btns button { flex: 1; padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        .btn-cancel { background: #EEE; color: #555; }
+        .btn-confirm { background: var(--primary); color: white; }
     </style>
 </head>
 <body>
 
-<div class="dashboard-container">
-    <div class="dashboard-header">
-        <h2 id="welcome-message">로딩 중...</h2>
-        <button class="logout-btn" onclick="logout()">로그아웃</button>
+<!-- 방 생성 모달 -->
+<div class="modal-overlay" id="createModal">
+    <div class="modal-box">
+        <h3>새 채팅방 만들기</h3>
+        <input type="text" id="newRoomName" placeholder="채팅방의 주제나 이름을 입력하세요" autocomplete="off">
+        <div class="modal-btns">
+            <button class="btn-cancel" onclick="closeModal()">취소</button>
+            <button class="btn-confirm" onclick="confirmCreateRoom()">생성하기</button>
+        </div>
     </div>
-    
-    <button class="create-room-btn" onclick="createRoom()">+ 새 채팅방 만들기</button>
-    
-    <div class="room-list-header">참여 가능한 채팅방</div>
-    <ul id="room-list" class="room-list">
-        <!-- DB에서 불러온 방 목록이 여기에 실시간으로 표시됩니다 -->
-    </ul>
+</div>
+
+<div class="dashboard-container">
+    <!-- 헤더 -->
+    <header class="header">
+        <div class="user-info">
+            <h2 id="welcome-message">사용자님</h2>
+            <p><span class="status-dot"></span> Firebase 서버 실시간 연결됨</p>
+        </div>
+        <button class="logout-btn" onclick="logout()">로그아웃</button>
+    </header>
+
+    <!-- 툴바 (검색 및 생성) -->
+    <div class="toolbar">
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="참여하고 싶은 방 검색..." onkeyup="filterRooms()">
+        </div>
+        <button class="create-btn" onclick="openModal()">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            방 만들기
+        </button>
+    </div>
+
+    <!-- 방 목록 -->
+    <div class="room-list-wrap">
+        <div class="list-header" id="list-count">활성화된 채팅방 불러오는 중...</div>
+        <ul id="room-list" class="room-list">
+            <!-- 자바스크립트를 통해 동적으로 생성되는 곳 -->
+        </ul>
+    </div>
 </div>
 
 <script type="module">
-    import { db } from './firebase-init.js';
-    import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
+    import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
 
+    const firebaseConfig = {
+        apiKey: "AIzaSyBTPc4Jdtp5bCRR6Sl2KnBARG88zAb4dco",
+        authDomain: "chatting-251e5.firebaseapp.com",
+        projectId: "chatting-251e5",
+        storageBucket: "chatting-251e5.firebasestorage.app",
+        messagingSenderId: "896657317592",
+        appId: "1:896657317592:web:456b81e34b290d6a89c1ad"
+    };
+    
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    // 1. 로그인 인증 확인 및 세팅
     const currentUser = localStorage.getItem('currentUser');
     if (!currentUser) {
-        alert("로그인이 필요합니다.");
+        alert("비정상적인 접근입니다. 로그인이 필요합니다.");
         window.location.href = 'index.html';
     } else {
         document.getElementById('welcome-message').innerText = `${currentUser}님, 환영합니다!`;
     }
 
-    // 로그아웃
+    // 2. 로그아웃 로직 (보안 강화)
     window.logout = function() {
-        localStorage.removeItem('currentUser');
-        window.location.href = 'index.html';
-    };
-
-    // 실시간 채팅방 목록 불러오기 (DB에 변화가 생기면 자동 업데이트)
-    const q = query(collection(db, "rooms"), orderBy("createdAt", "desc"));
-    onSnapshot(q, (snapshot) => {
-        const roomList = document.getElementById('room-list');
-        roomList.innerHTML = ''; // 기존 목록 초기화
-        
-        snapshot.forEach((doc) => {
-            const room = doc.data();
-            const li = document.createElement('li');
-            li.className = 'room-item';
-            li.innerHTML = `
-                <div class="room-info">
-                    <span class="room-title">${room.name}</span>
-                    <span class="room-admin">방장: ${room.admin}</span>
-                </div>
-                <button class="join-btn" onclick="enterRoom('${room.name}', '${room.admin}')">입장</button>
-            `;
-            roomList.appendChild(li);
-        });
-    });
-
-    // 채팅방 만들기 (DB에 저장)
-    window.createRoom = async function() {
-        const roomName = prompt("만들 채팅방 이름을 입력하세요:");
-        if (roomName && roomName.trim() !== "") {
-            try {
-                await addDoc(collection(db, "rooms"), {
-                    name: roomName,
-                    admin: currentUser,
-                    createdAt: serverTimestamp()
-                });
-                alert(`'${roomName}' 방이 생성되었습니다!`);
-            } catch (error) { console.error("방 생성 에러:", error); }
+        if(confirm("정말 로그아웃 하시겠습니까?")) {
+            localStorage.clear(); // 모든 정보 확실히 지우기
+            window.location.href = 'index.html';
         }
     };
 
-    // 채팅방 입장
-    window.enterRoom = function(roomName, adminName) {
-        localStorage.setItem('currentRoom', roomName);
+    // 3. 실시간 방 목록 불러오기 (Firestore Realtime Listener)
+    const roomListEl = document.getElementById('room-list');
+    const roomsQuery = query(collection(db, "rooms"), orderBy("createdAt", "desc"));
+    
+    // onSnapshot은 DB에 변경사항(생성, 삭제)이 생기면 즉시 함수를 다시 실행합니다.
+    onSnapshot(roomsQuery, (snapshot) => {
+        roomListEl.innerHTML = ''; 
+        let count = 0;
+
+        if(snapshot.empty) {
+            document.getElementById('list-count').innerText = "현재 개설된 방이 없습니다.";
+            roomListEl.innerHTML = `
+                <div class="empty-state">
+                    <span style="font-size: 40px; display: block; margin-bottom:10px;">💬</span>
+                    첫 번째 채팅방의 주인공이 되어보세요!
+                </div>`;
+            return;
+        }
+
+        snapshot.forEach((doc) => {
+            const room = doc.data();
+            const roomId = doc.id;
+            count++;
+            
+            // 날짜 포맷팅 (예: 14:30 개설)
+            let timeString = "방금 전";
+            if(room.createdAt) {
+                const date = room.createdAt.toDate();
+                const hours = String(date.getHours()).padStart(2, '0');
+                const minutes = String(date.getMinutes()).padStart(2, '0');
+                timeString = `${hours}:${minutes} 개설`;
+            }
+
+            const isAdmin = (room.admin === currentUser);
+            const badgeHTML = isAdmin ? `<span class="badge">내 방</span>` : '';
+
+            const li = document.createElement('li');
+            li.className = 'room-item';
+            li.innerHTML = `
+                <div class="room-details">
+                    <h3>${room.name} ${badgeHTML}</h3>
+                    <div class="room-meta">
+                        <span>👑 방장: ${room.admin}</span>
+                        <span>🕒 ${timeString}</span>
+                    </div>
+                </div>
+                <button class="join-btn" onclick="enterRoom('${roomId}', '${room.name}', '${room.admin}')">입장하기</button>
+            `;
+            roomListEl.appendChild(li);
+        });
+        
+        document.getElementById('list-count').innerText = `현재 참여 가능한 채팅방 (${count}개)`;
+    }, (error) => {
+        console.error("실시간 목록 수신 오류:", error);
+        if(error.code === 'permission-denied') {
+            roomListEl.innerHTML = `<div class="empty-state" style="color:red;">데이터베이스 접근 권한이 없습니다.<br>Firebase 규칙을 설정해주세요.</div>`;
+        }
+    });
+
+    // 4. 커스텀 모달 제어 로직
+    const modal = document.getElementById('createModal');
+    const newRoomInput = document.getElementById('newRoomName');
+
+    window.openModal = () => {
+        modal.style.display = 'flex';
+        newRoomInput.value = '';
+        setTimeout(() => newRoomInput.focus(), 100);
+    };
+    
+    window.closeModal = () => {
+        modal.style.display = 'none';
+    };
+
+    window.confirmCreateRoom = async () => {
+        const roomName = newRoomInput.value.trim();
+        if (!roomName) return alert("방 이름을 입력해주세요.");
+        if (roomName.length > 20) return alert("방 이름은 20자를 넘을 수 없습니다.");
+
+        try {
+            // DB의 rooms 컬렉션에 새 문서 생성
+            await addDoc(collection(db, "rooms"), {
+                name: roomName,
+                admin: currentUser,
+                createdAt: serverTimestamp() // 서버 시간 자동 기록
+            });
+            closeModal();
+            // onSnapshot이 작동 중이므로 목록 갱신 코드를 따로 짤 필요가 없습니다!
+        } catch (error) {
+            console.error("방 생성 에러:", error);
+            alert("방 생성에 실패했습니다. DB 규칙을 확인하세요.");
+        }
+    };
+
+    // 모달창 바깥 클릭 시 닫기 기능
+    modal.addEventListener('click', (e) => {
+        if(e.target === modal) closeModal();
+    });
+    newRoomInput.addEventListener('keypress', (e) => {
+        if(e.key === 'Enter') confirmCreateRoom();
+    });
+
+    // 5. 방 입장 기능 (채팅방 화면으로 데이터 전달)
+    // 방의 고유 ID(roomId)도 함께 넘겨서 나중에 방 폭파 기능 등에 사용합니다.
+    window.enterRoom = function(roomId, roomName, adminName) {
+        localStorage.setItem('currentRoomId', roomId);
+        localStorage.setItem('currentRoomName', roomName);
         localStorage.setItem('roomAdmin', adminName);
+        
         window.location.href = 'chat.html';
+    };
+
+    // 6. 실시간 검색 필터링 (클라이언트 단 구현)
+    window.filterRooms = function() {
+        const keyword = document.getElementById('searchInput').value.toLowerCase();
+        const items = document.querySelectorAll('.room-item');
+        
+        items.forEach(item => {
+            const title = item.querySelector('h3').innerText.toLowerCase();
+            if(title.includes(keyword)) {
+                item.style.display = 'flex';
+            } else {
+                item.style.display = 'none';
+            }
+        });
     };
 </script>
 
