@@ -95,12 +95,12 @@
         }
     }
 
-    function enterRoom(roomName, adminName = '운영자') {
-        // 들어갈 방의 이름과 방장 이름을 브라우저에 임시 저장
+    function enterRoom(roomName) {
+        // 들어갈 방의 이름과 방장(나)의 이름을 브라우저에 임시 저장합니다.
         localStorage.setItem('currentRoom', roomName);
-        localStorage.setItem('roomAdmin', adminName);
+        localStorage.setItem('roomAdmin', currentUser);
         
-        // 채팅방 화면으로 이동!
+        // 알림창 대신 chat.html 파일로 화면을 이동시킵니다!
         window.location.href = 'chat.html';
     }
 </script>
