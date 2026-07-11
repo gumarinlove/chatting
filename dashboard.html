@@ -95,9 +95,13 @@
         }
     }
 
-    // 5. 채팅방 입장 로직 (chat.html로 이동할 예정)
-    function enterRoom(roomName) {
-        alert(`'${roomName}' 채팅방으로 입장합니다! (채팅 화면 구현 시 chat.html로 이동)`);
+    function enterRoom(roomName, adminName = '운영자') {
+        // 들어갈 방의 이름과 방장 이름을 브라우저에 임시 저장
+        localStorage.setItem('currentRoom', roomName);
+        localStorage.setItem('roomAdmin', adminName);
+        
+        // 채팅방 화면으로 이동!
+        window.location.href = 'chat.html';
     }
 </script>
 
