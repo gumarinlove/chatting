@@ -6,20 +6,13 @@
     <title>실시간 채팅 - 대시보드</title>
     <style>
         body { font-family: 'Malgun Gothic', sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background-color: #f0f2f5; margin: 0; }
-        
-        .dashboard-container {
-            background: white; padding: 30px; border-radius: 10px; 
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 500px; height: 600px;
-            display: flex; flex-direction: column;
-        }
+        .dashboard-container { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 500px; height: 600px; display: flex; flex-direction: column; }
         .dashboard-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #f0f2f5; padding-bottom: 15px; margin-bottom: 20px; }
         .dashboard-header h2 { margin: 0; font-size: 20px; color: #333; }
         .logout-btn { background: #ff4d4d; color: white; border: none; padding: 8px 12px; border-radius: 5px; cursor: pointer; font-size: 12px; font-weight: bold; }
         .logout-btn:hover { background: #cc0000; }
-        
         .create-room-btn { width: 100%; padding: 15px; background-color: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; font-weight: bold; margin-bottom: 20px; }
         .create-room-btn:hover { background-color: #218838; }
-        
         .room-list-header { font-size: 16px; color: #555; margin-bottom: 10px; font-weight: bold; }
         .room-list { list-style: none; padding: 0; margin: 0; overflow-y: auto; flex-grow: 1; }
         .room-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; border: 1px solid #eee; border-radius: 8px; margin-bottom: 10px; transition: background 0.2s; }
@@ -43,66 +36,70 @@
     
     <div class="room-list-header">참여 가능한 채팅방</div>
     <ul id="room-list" class="room-list">
-        <!-- 기본 예시 채팅방 -->
-        <li class="room-item">
-            <div class="room-info">
-                <span class="room-title">모두의 자유 채팅방</span>
-                <span class="room-admin">방장: 운영자</span>
-            </div>
-            <button class="join-btn" onclick="enterRoom('모두의 자유 채팅방')">입장</button>
-        </li>
+        <!-- DB에서 불러온 방 목록이 여기에 실시간으로 표시됩니다 -->
     </ul>
 </div>
 
-<script>
-    // 1. index.html에서 저장한 닉네임 불러오기
-    let currentUser = localStorage.getItem('currentUser');
+<script type="module">
+    import { db } from './firebase-init.js';
+    import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
 
-    // 2. 비정상적인 접근 차단 (로그인 없이 주소창에 바로 치고 들어온 경우)
+    const currentUser = localStorage.getItem('currentUser');
     if (!currentUser) {
-        alert("로그인이 필요한 서비스입니다.");
-        window.location.href = 'index.html'; // 첫 화면으로 돌려보냄
+        alert("로그인이 필요합니다.");
+        window.location.href = 'index.html';
     } else {
-        // 정상 로그인 시 환영 메시지 출력
         document.getElementById('welcome-message').innerText = `${currentUser}님, 환영합니다!`;
     }
 
-    // 3. 로그아웃 (저장된 정보 지우고 첫 화면으로)
-    function logout() {
+    // 로그아웃
+    window.logout = function() {
         localStorage.removeItem('currentUser');
         window.location.href = 'index.html';
-    }
+    };
 
-    // 4. 채팅방 만들기
-    function createRoom() {
-        const roomName = prompt("만들 채팅방 이름을 입력하세요:");
+    // 실시간 채팅방 목록 불러오기 (DB에 변화가 생기면 자동 업데이트)
+    const q = query(collection(db, "rooms"), orderBy("createdAt", "desc"));
+    onSnapshot(q, (snapshot) => {
+        const roomList = document.getElementById('room-list');
+        roomList.innerHTML = ''; // 기존 목록 초기화
         
-        if (roomName && roomName.trim() !== "") {
-            const roomList = document.getElementById('room-list');
-            const newRoom = document.createElement('li');
-            newRoom.className = 'room-item';
-            
-            // 화면에 방장 이름(나)과 함께 방 추가
-            newRoom.innerHTML = `
+        snapshot.forEach((doc) => {
+            const room = doc.data();
+            const li = document.createElement('li');
+            li.className = 'room-item';
+            li.innerHTML = `
                 <div class="room-info">
-                    <span class="room-title">${roomName}</span>
-                    <span class="room-admin">방장: ${currentUser} (나)</span>
+                    <span class="room-title">${room.name}</span>
+                    <span class="room-admin">방장: ${room.admin}</span>
                 </div>
-                <button class="join-btn" onclick="enterRoom('${roomName}')">입장</button>
+                <button class="join-btn" onclick="enterRoom('${room.name}', '${room.admin}')">입장</button>
             `;
-            roomList.prepend(newRoom);
-            alert(`'${roomName}' 방이 생성되었습니다! 방장 권한이 부여됩니다.`);
-        }
-    }
+            roomList.appendChild(li);
+        });
+    });
 
-    function enterRoom(roomName) {
-        // 들어갈 방의 이름과 방장(나)의 이름을 브라우저에 임시 저장합니다.
+    // 채팅방 만들기 (DB에 저장)
+    window.createRoom = async function() {
+        const roomName = prompt("만들 채팅방 이름을 입력하세요:");
+        if (roomName && roomName.trim() !== "") {
+            try {
+                await addDoc(collection(db, "rooms"), {
+                    name: roomName,
+                    admin: currentUser,
+                    createdAt: serverTimestamp()
+                });
+                alert(`'${roomName}' 방이 생성되었습니다!`);
+            } catch (error) { console.error("방 생성 에러:", error); }
+        }
+    };
+
+    // 채팅방 입장
+    window.enterRoom = function(roomName, adminName) {
         localStorage.setItem('currentRoom', roomName);
-        localStorage.setItem('roomAdmin', currentUser);
-        
-        // 알림창 대신 chat.html 파일로 화면을 이동시킵니다!
+        localStorage.setItem('roomAdmin', adminName);
         window.location.href = 'chat.html';
-    }
+    };
 </script>
 
 </body>
